@@ -1,0 +1,38 @@
+# Data — unzipped source files and pipeline output excluded from version control
+# (zip originals are kept tracked; unzipped files are large and reproducible from them)
+data/*.csv
+data/*.json
+data/geo/*.geojson
+data/output/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp

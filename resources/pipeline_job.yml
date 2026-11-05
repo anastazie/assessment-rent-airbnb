@@ -1,0 +1,56 @@
+# Databricks Asset Bundle job configuration
+# Deploy with: databricks bundle deploy && databricks bundle run amsterdam_rental_pipeline
+#
+# Requires Databricks CLI v0.200+ and a configured profile.
+# See: https://docs.databricks.com/en/dev-tools/bundles/index.html
+
+bundle:
+  name: amsterdam_rental
+
+resources:
+  jobs:
+    amsterdam_rental_pipeline:
+      name: Amsterdam Rental Revenue Pipeline
+      description: >
+        Medallion architecture pipeline comparing Airbnb short-term vs Kamernet
+        long-term rental revenue per Amsterdam postcode. Runs Bronze → Silver → Gold.
+
+      tasks:
+        - task_key: bronze_ingestion
+          description: Ingest raw source files into Delta bronze tables
+          notebook_task:
+            notebook_path: ./notebooks/01_bronze
+            source: WORKSPACE
+          job_cluster_key: pipeline_cluster
+
+        - task_key: silver_cleaning
+          description: Clean, enrich, and filter to Amsterdam. Backfill missing zipcodes.
+          depends_on:
+            - task_key: bronze_ingestion
+          notebook_task:
+            notebook_path: ./notebooks/02_silver
+            source: WORKSPACE
+          job_cluster_key: pipeline_cluster
+
+        - task_key: gold_revenue
+          description: Calculate and aggregate monthly revenue estimates per postcode.
+          depends_on:
+            - task_key: silver_cleaning
+          notebook_task:
+            notebook_path: ./notebooks/03_gold
+            source: WORKSPACE
+          job_cluster_key: pipeline_cluster
+
+      job_clusters:
+        - job_cluster_key: pipeline_cluster
+          new_cluster:
+            spark_version: 15.4.x-scala2.12
+            node_type_id: i3.xlarge
+            num_workers: 2
+            spark_conf:
+              spark.databricks.delta.preview.enabled: "true"
+
+      # Run once manually; add a schedule here for recurring runs
+      # schedule:
+      #   quartz_cron_expression: "0 0 6 * * ?"
+      #   timezone_id: Europe/Amsterdam
