@@ -27,7 +27,7 @@ Geographic reference files (`post_codes.geojson`, `amsterdam_areas.geojson`) are
 Applies business rules and produces clean, typed, Amsterdam-scoped tables:
 
 - **Rentals**: filtered to `city == 'Amsterdam'` (the source dataset covers all of the Netherlands). Filtering here rather than Bronze preserves raw fidelity and keeps the business rule in the transformation layer where it belongs.
-- **Airbnb**: price outliers capped at the IQR upper fence; **22.7% of rows had no zipcode** — backfilled via point-in-polygon lookup against `post_codes.geojson` using a broadcast UDF, recovering all rows that had valid coordinates.
+- **Airbnb**: price outliers capped at the IQR upper fence (chosen over z-score because nightly prices are right-skewed — the long tail inflates the std and makes z-score under-flag; see [`notebooks/00_eda.ipynb`](notebooks/00_eda.ipynb) for the IQR vs z-score agreement crosstab); **22.7% of rows had no zipcode** — backfilled via point-in-polygon lookup against `post_codes.geojson` using a broadcast UDF, recovering all rows that had valid coordinates.
 - Raw string fields (`rent`, `deposit`, `areaSqm`) parsed to numeric types; single-element list fields in the Kamernet JSON flattened to scalars.
 
 Zipcodes were transformed to PC4 (the 4-digit prefix of a Dutch `NNNNAA` postcode) because:
