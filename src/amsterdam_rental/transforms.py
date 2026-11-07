@@ -56,12 +56,11 @@ def cap_outliers_iqr(value: float, q1: float, q3: float, multiplier: float = 1.5
     return min(value, upper_fence)
 
 
-def airbnb_monthly_revenue(nightly_price: float, occupancy_rate: float = 0.65) -> float:
+def airbnb_monthly_revenue(nightly_price: float, occupancy_rate: float = 0.66) -> float:
     """
     Estimate monthly Airbnb revenue from a nightly price.
 
-    Assumes 65% annual occupancy, which aligns with published Amsterdam
-    Airbnb market averages (AirDNA / AIRDNA Amsterdam City Report).
+    Assumes 66% annual occupancy per AirDNA Amsterdam market data.
     Formula: nightly × 365 × occupancy / 12
     """
     return nightly_price * 365 * occupancy_rate / 12

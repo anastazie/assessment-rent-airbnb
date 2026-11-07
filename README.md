@@ -27,8 +27,13 @@ Geographic reference files (`post_codes.geojson`, `amsterdam_areas.geojson`) are
 Applies business rules and produces clean, typed, Amsterdam-scoped tables:
 
 - **Rentals**: filtered to `city == 'Amsterdam'` (the source dataset covers all of the Netherlands). Filtering here rather than Bronze preserves raw fidelity and keeps the business rule in the transformation layer where it belongs.
-- **Airbnb**: price outliers capped at the IQR upper fence; zipcode normalised to 4-digit PC4 string; **22.7% of rows had no zipcode** — backfilled via point-in-polygon lookup against `post_codes.geojson` using a broadcast UDF, recovering all rows that had valid coordinates.
+- **Airbnb**: price outliers capped at the IQR upper fence; **22.7% of rows had no zipcode** — backfilled via point-in-polygon lookup against `post_codes.geojson` using a broadcast UDF, recovering all rows that had valid coordinates.
 - Raw string fields (`rent`, `deposit`, `areaSqm`) parsed to numeric types; single-element list fields in the Kamernet JSON flattened to scalars.
+
+Zipcodes were transformed to PC4 (the 4-digit prefix of a Dutch `NNNNAA` postcode) because:
+- Airbnb's `zipcode` field is already truncated to PC4 in the source CSV (`1053`, not `1053AB`), so joining on the full PC6 would match nothing.
+- The `post_codes.geojson` used for lat/lon backfill contains PC4 polygons only, so recovered zipcodes can't be more granular than PC4 anyway.
+- PC6 is street-segment scale (~20 addresses); aggregating revenue at that grain would produce many postcodes with 1–2 listings and unstable medians. PC4 is neighbourhood-scale and gives statistically meaningful per-postcode comparisons.
 
 ### Gold
 Calculates estimated monthly revenue per listing and aggregates by postcode:
