@@ -1,99 +1,110 @@
-# RevoData's Technical Assessment
+# Amsterdam Rental Revenue Pipeline
 
-## Introduction
+A Medallion Architecture data pipeline comparing short-term Airbnb and long-term Kamernet rental revenue per Amsterdam postcode, to identify postcodes with the highest investment potential.
 
-This project provides an opportunity to demonstrate your expertise in data engineering using a real-world dataset.
+## Business question
 
-Imagine yourself as a successful (and rich) data engineer seeking to reinvest your earnings in Amsterdam's property market for passive income. Your objective is to purchase houses and apartments, which you plan to lease either through long-term agreements on Kamernet or short-term listings on Airbnb.
+> For each Amsterdam postcode, is listing a property on Airbnb or renting it long-term through Kamernet more profitable?
 
-As a skilled data engineer, you have already collected a dataset containing house locations and nightly prices from Airbnb and a second dataset from Kamernet.
+---
 
-### Goal of the Assessment
+## Architecture
 
-The aim is to identify postcodes with investment potential and determine whether renting properties long-term through Kamernet or via Airbnb would be more profitable.
+The pipeline follows the [Medallion Architecture](https://www.databricks.com/glossary/medallion-architecture) (Bronze → Silver → Gold) and is designed to run on Databricks.
 
-## Product Development
+```
+data/airbnb.csv          ─┐
+data/rentals.json         ├─► Bronze (raw Delta) ─► Silver (clean Delta) ─► Gold (revenue Delta + Parquet)
+data/geo/*.geojson        ─┘ (geo: raw files only, see below)
+```
 
-If you are applying for a non-engineering position:
+### Bronze
+Ingests `airbnb.csv` and `rentals.json` as-is into Delta tables with an ingestion timestamp. No transformation — bronze preserves raw fidelity so the Silver cleaning logic can be changed without data loss.
 
-- Create a conceptual design of how the implementation looks like (either components or process)
-- Create a business case
-- Create a roadmap with milestones how you would deliver this implementation with a team of engineers
-- Create a storyline based on the above input to convince the customer to invest
+Geographic reference files (`post_codes.geojson`, `amsterdam_areas.geojson`) are intentionally excluded from Bronze. They are already clean, versioned in the repo alongside the zip originals, and consumed directly as raw assets in the Silver zipcode backfill. Routing them through Delta would add ingestion cost without adding value.
 
-## Engineering Deliverables
+### Silver
+Applies business rules and produces clean, typed, Amsterdam-scoped tables:
 
-If you are applying for an engineering role, you must at minimum build one or more data pipelines that:
+- **Rentals**: filtered to `city == 'Amsterdam'` (the source dataset covers all of the Netherlands). Filtering here rather than Bronze preserves raw fidelity and keeps the business rule in the transformation layer where it belongs.
+- **Airbnb**: price outliers capped at the IQR upper fence; zipcode normalised to 4-digit PC4 string; **22.7% of rows had no zipcode** — backfilled via point-in-polygon lookup against `post_codes.geojson` using a broadcast UDF, recovering all rows that had valid coordinates.
+- Raw string fields (`rent`, `deposit`, `areaSqm`) parsed to numeric types; single-element list fields in the Kamernet JSON flattened to scalars.
 
-- Ingest rental data scraped from Kamernet (`./data/rentals.json`)
-- Ingest data from Airbnb (`./data/airbnb.csv`)
-- Clean both datasets
-- Identify and address any missing or improper data by designing (and implementing if time permits) a backfill
-strategy
-- Calculate potential revenue per property and per postal code for both rental and Airbnb sources
-- Follow the principles of the [Medallion Architecture](https://www.databricks.com/glossary/medallion-architecture#:~:text=A%20medallion%20architecture%20is%20a%20data%20design%20pattern,%28from%20Bronze%20%E2%87%92%20Silver%20%E2%87%92%20Gold%20layer%20tables%29.)
+### Gold
+Calculates estimated monthly revenue per listing and aggregates by postcode:
 
-The following deliverables are expected as part of the project:
+- **Airbnb monthly revenue** = `nightly_price × 365 × 0.66 / 12`
+  — 66% occupancy rate per [AirDNA Amsterdam market data](https://www.airdna.co/vacation-rental-data/app/nl/default/amsterdam/overview), applied as a city-wide average. Actual occupancy varies by neighbourhood, property type, and season.
+- **Rental monthly revenue** = `rent + additional_costs`
+- Output: `revenue_per_postcode` table with average revenue per source, listing counts, and a `recommendation` column (airbnb / rental / neutral).
 
-- Exploratory notebooks with data validation checks (placed in the `./scratch` folder)
-- Notebooks containing your pipeline implementation (located in the `./notebooks` folder)
-- Libraries or buildable packages for your pipeline (stored in `./src/<package_name>`)
-- Unit tests for your pipeline (included in the `./tests` folder)
-- Documentation for your pipeline (documented in the `README` and `./docs` folders) - **explain the why, not the how**
-- Export of datasets produced by your pipeline, formatted as Parquet files (placed in `./data/output`)
-- Pipeline job configurations (included in the `./resources` folder)
+---
 
-We strongly recommend using Databricks. You can set up a [free trial for professional use following Express Setup](https://signup.databricks.com/) or [Databricks Free Edition](https://www.databricks.com/learn/free-edition). If you have a strong reason to use another tool, such as a local PySpark instance or a cloud service, you may do so, but please explain your reasoning.
-Please prioritise completing the minimum requirements listed above before attempting any stretch goals.
+## Repository structure
 
-### Additional guidance for Technical Instructor applicants
+```
+notebooks/          Pipeline notebooks (run in order: 01 → 02 → 03)
+  01_bronze.ipynb   Raw ingestion
+  02_silver.ipynb   Cleaning, filtering, zipcode backfill
+  03_gold.ipynb     Revenue calculation and postcode aggregation
 
-We don't expect the same level of engineering depth or polish as we would from a dedicated Data Engineer, but you should demonstrate a solid technical foundation, a working understanding of data pipelines, and the ability to explain your implementation choices and reasoning. Focus on delivering a complete, understandable solution that addresses the core business question rather than spending time on optional extras.
+src/amsterdam_rental/
+  transforms.py     Pure Python transform functions (no Spark dependency)
+  geo.py            PostcodeIndex — point-in-polygon zipcode backfill
 
-Save everything in a private Git repository and share it with us. Deliver a clean repository: remove any redundant files, replace our README with your own, and provide clear instructions for building and running your project. If unsure how to structure your repository, we recommend starting with our [RevoData Declarative Automation Bundle Templates](https://github.com/revodatanl/revo-dabs). We expect you to spend 3-4 hours on the assessment, so apply your best judgment when prioritizing tasks.
+tests/
+  test_transforms.py  Unit tests for all transform functions
+  test_geo.py         Unit tests for PostcodeIndex with GeoJSON fixture
 
-### Stretch Goals
+scratch/
+  01_eda.ipynb      Exploratory analysis — data quality findings that informed Silver design
 
-Following are a number of stretch goals of increasing difficulty that will give us an idea of how far you can go. We **do not expect** that you will be able to achieve all of these in the given time, so pick and choose whatever suits you best. It is preferable to focus on a complete and high-quality initial assessment rather than getting lost achieving these goals.
+resources/
+  pipeline_job.yml  Databricks Asset Bundle job configuration
 
-#### Level 1 / Engineer
+data/
+  airbnb.zip        Source: Airbnb listings (nightly price, location, room type)
+  rentals.zip       Source: Kamernet rentals (monthly rent, Amsterdam + rest of NL)
+  geo/
+    post_codes.zip        474 PC4 postcode polygons (greater Amsterdam)
+    amsterdam_areas.zip   99 neighbourhood polygons (Amsterdam only)
+  output/           Pipeline output (Delta tables + Parquet exports) — gitignored
+```
 
-- [ ] Build a CI/CD pipeline that deploys your data pipeline
-- [ ] Run tests in your CI/CD pipeline
-- [ ] Use pre-commit hooks to ensure code quality
+---
 
-#### Level 2 / Artist
+## Running the pipeline
 
-- [ ] Build a visualization or dashboard displaying potential revenue per postcode (rental and Airbnb)
-- [ ] Create diagrams of the data flows and of your CI/CD pipeline
+### On Databricks (recommended)
 
-### BONUS
+1. Import this repository into a Databricks Repo.
+2. Unzip the source files in `data/` — or let the notebooks handle it automatically (they detect and extract from zip if the unzipped file is absent).
+3. Create a Unity Catalog volume at `/Volumes/workspace/default/amsterdam_rental` or update `OUTPUT_ROOT` in each notebook's setup cell.
+4. Run notebooks in order: `01_bronze` → `02_silver` → `03_gold`.
+5. (Optional) Build a dashboard to visualise the gold table — see [docs/dashboard.md](docs/dashboard.md).
 
-#### Level 3 / Future-Proof
+To deploy as a scheduled job using the Databricks CLI:
 
-- [ ] Use Lakeflow Spark Declarative Pipelines (SDP) to build your pipelines
-- [ ] Use expectations (if using SDP) or another framework (if not), to ensure data quality
-- [ ] Deploy your pipeline using Declarative Automation Bundles
+```bash
+databricks bundle deploy
+databricks bundle run amsterdam_rental_pipeline
+```
 
-#### Level 4 / over 9000
+### Local (PySpark)
 
-- [ ] Load the data from `rentals.json` one record at a time with streaming ingestion
-- [ ] Update the gold layer table(s) in real time as new streaming data arrives
+```bash
+pip install pyspark delta-spark pytest
+python -m pytest tests/        # run unit tests
+# then open and run notebooks in order using Jupyter
+```
 
-#### Level 5 / 10x Developer
+---
 
-- [ ] Use the `./data/geo/post_codes.geojson` geographic dataset to enrich the Airbnb data with missing postcodes
-- [ ] - or - Query an external API such as [public.opendatasoft.com](https://public.opendatasoft.com/explore/dataset/georef-netherlands-postcode-pc4/api/) to fill in the missing postcodes using a UDF
-- [ ] Use the `./data/geo/amsterdam_areas.geojson` geographic dataset for your visualization
+## Known limitations
 
-## Review
-
-Once you have completed this project, we will review it together. We are paying special attention to what you did or how you approached the pipeline logic and the challenges you addressed when issues arose. With the data provided, we expect some challenges, so we encourage creative workarounds and proactive measures.
-
-As a note on using AI tools (ChatGPT, Copilot, etc.), we encourage you to use these tools to enhance your productivity. However, please remember that you are 100% responsible for the code you submit. You need to be able to explain how the code works and discuss the pros and cons of your implementations.
-
-We also require you to submit a (Markdown) export of the AI tool session conversation(s) that you conducted while completing this assignment, to better understand your working process.
-
-Please do **not** use AI assistants in any way during the interview. We want to assess your technical skills, problem-solving abilities, and communication skills. Additionally, we want to evaluate your ability to clearly and concisely explain your thoughts.
-
-**Good luck, and see you on the other side!**
+| Limitation | Detail |
+|---|---|
+| Rentals data age | Kamernet dataset was scraped in 2019 — revenue estimates reflect that market, not current prices |
+| Uniform occupancy rate | 66% applied to all Airbnb listings; in reality varies significantly by neighbourhood and property type |
+| No actual occupancy data | Airbnb dataset contains nightly prices only — occupancy is estimated, not measured |
+| Geo backfill boundary | Point-in-polygon only covers postcodes in `post_codes.geojson`; listings outside greater Amsterdam return null |
