@@ -8,6 +8,16 @@ A Medallion Architecture data pipeline comparing short-term Airbnb and long-term
 
 ---
 
+## Dashboard
+
+![Investment potential by Amsterdam postcode](docs/images/investment_potential_map.png)
+
+Investment potential per PC4 postcode, ranked by the highest achievable monthly rental income (no sale-price data is available, so income is the proxy). Dark green = top third of postcodes (High potential), lighter = Medium / Low, white = fewer than 5 listings, not scored. Airbnb out-earns long-term rental in every postcode, so the ranking is driven by expected Airbnb income.
+
+Build steps and the dataset SQL are in [docs/dashboard.md](docs/dashboard.md).
+
+---
+
 ## Architecture
 
 The pipeline follows the [Medallion Architecture](https://www.databricks.com/glossary/medallion-architecture) (Bronze → Silver → Gold) and is designed to run on Databricks.
@@ -42,16 +52,6 @@ Calculates estimated monthly revenue per listing and aggregates by postcode:
   — 66% occupancy rate per [AirDNA Amsterdam market data](https://www.airdna.co/vacation-rental-data/app/nl/default/amsterdam/overview), applied as a city-wide average. Actual occupancy varies by neighbourhood, property type, and season.
 - **Rental monthly revenue** = `rent + additional_costs`
 - Output: `revenue_per_postcode` table with average revenue per source, listing counts, and a `recommendation` column (airbnb / rental / neutral).
-
----
-
-## Dashboard
-
-![Investment potential by Amsterdam postcode](docs/images/investment_potential_map.png)
-
-Investment potential per PC4 postcode, ranked by the highest achievable monthly rental income (no sale-price data is available, so income is the proxy). Dark green = top third of postcodes (High potential), lighter = Medium / Low, white = fewer than 5 listings, not scored. Airbnb out-earns long-term rental in every postcode, so the ranking is driven by expected Airbnb income.
-
-Build steps and the dataset SQL are in [docs/dashboard.md](docs/dashboard.md).
 
 ---
 
@@ -127,7 +127,7 @@ The productionized path. Deploys the three notebooks as a single multi-task job 
    ```bash
    databricks bundle run amsterdam_rental_pipeline
    ```
-   One cluster is spun up, all three tasks run on it sequentially, then it is torn down.
+   The three tasks run sequentially on serverless compute.
 
 5. **(Optional) Tear down**:
    ```bash
