@@ -86,8 +86,6 @@ data/
   output/           Pipeline output (Delta tables + Parquet exports) — gitignored
 ```
 
-**Why `src/` is separate from the notebooks:** the transform and geo logic lives in a plain Python package so it can be unit-tested with pytest without Spark or a cluster. The notebooks and the tests both import it by adding `src/` to `sys.path`. It is not packaged as a wheel on purpose: the code is used by a single job in a single repo, so a wheel would add a build step and a serverless environment dependency without any benefit. Packaging becomes worth it once the library is shared across jobs or repos, or needs its own version.
-
 ---
 
 ## Running the pipeline
@@ -180,3 +178,4 @@ pre-commit run --all-files     # run once across the repo
 | Uniform occupancy rate | 66% applied to all Airbnb listings; in reality varies significantly by neighbourhood and property type |
 | No actual occupancy data | Airbnb dataset contains nightly prices only — occupancy is estimated, not measured |
 | Geo backfill boundary | Point-in-polygon only covers postcodes in `post_codes.geojson`; Airbnb listings that resolve to no Amsterdam PC4 are dropped in Silver |
+| No property sale prices | A full investment-potential view needs purchase prices per postcode to compute yield, but no sale price dataset for 2019 could be found, so the comparison covers revenue only |
