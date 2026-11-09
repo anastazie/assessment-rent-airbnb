@@ -27,11 +27,11 @@ Geographic reference files (`post_codes.geojson`, `amsterdam_areas.geojson`) are
 Applies business rules and produces clean, typed, Amsterdam-scoped tables:
 
 - **Rentals**: filtered to `city == 'Amsterdam'` (the source dataset covers all of the Netherlands). Filtering here rather than Bronze preserves raw fidelity and keeps the business rule in the transformation layer where it belongs.
-- **Airbnb**: price outliers capped at the IQR upper fence (chosen over z-score because nightly prices are right-skewed — the long tail inflates the std and makes z-score under-flag; see [`notebooks/00_eda.ipynb`](notebooks/00_eda.ipynb) for the IQR vs z-score agreement crosstab); **22.7% of rows had no zipcode** — backfilled via point-in-polygon lookup against `post_codes.geojson` using a broadcast UDF, recovering all rows that had valid coordinates.
+- **Airbnb**: price outliers capped at the IQR upper fence (chosen over z-score because nightly prices are right-skewed — the long tail inflates the std and makes z-score under-flag; see [`notebooks/00_eda.ipynb`](notebooks/00_eda.ipynb) for the IQR vs z-score agreement crosstab); **22.7% of rows had no zipcode** — backfilled via point-in-polygon lookup against `post_codes.geojson`. Stated zipcodes are also validated: kept if they are an Amsterdam PC4, otherwise replaced by the PC4 the coordinates fall in (fixes typos/placeholders such as `1212AB` on an Oud-Zuid listing). Listings whose zipcode and coordinates are both outside the Amsterdam municipality (Diemen, Amstelveen, Haarlemmermeer, …; 24 rows) are dropped — the same rule as the rentals city filter. Coordinates don't override valid zipcodes because Airbnb jitters them by up to ~150 m, which puts ~21% of listings in a neighbouring PC4.
 - Raw string fields (`rent`, `deposit`, `areaSqm`) parsed to numeric types; single-element list fields in the Kamernet JSON flattened to scalars.
 
 Zipcodes were transformed to PC4 (the 4-digit prefix of a Dutch `NNNNAA` postcode) because:
-- Airbnb's `zipcode` field is already truncated to PC4 in the source CSV (`1053`, not `1053AB`), so joining on the full PC6 would match nothing.
+- Airbnb's `zipcode` field is inconsistent (`1053`, `1053.0`, `1053 AB`, `1183aj`); only the PC4 part is reliably present, so joining on the full PC6 would match little.
 - The `post_codes.geojson` used for lat/lon backfill contains PC4 polygons only, so recovered zipcodes can't be more granular than PC4 anyway.
 - PC6 is street-segment scale (~20 addresses); aggregating revenue at that grain would produce many postcodes with 1–2 listings and unstable medians. PC4 is neighbourhood-scale and gives statistically meaningful per-postcode comparisons.
 
@@ -179,4 +179,4 @@ pre-commit run --all-files     # run once across the repo
 | Rentals data age | Kamernet dataset was scraped in 2019 — revenue estimates reflect that market, not current prices |
 | Uniform occupancy rate | 66% applied to all Airbnb listings; in reality varies significantly by neighbourhood and property type |
 | No actual occupancy data | Airbnb dataset contains nightly prices only — occupancy is estimated, not measured |
-| Geo backfill boundary | Point-in-polygon only covers postcodes in `post_codes.geojson`; listings outside greater Amsterdam return null |
+| Geo backfill boundary | Point-in-polygon only covers postcodes in `post_codes.geojson`; Airbnb listings that resolve to no Amsterdam PC4 are dropped in Silver |
