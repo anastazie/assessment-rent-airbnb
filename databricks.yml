@@ -1,0 +1,17 @@
+bundle:
+  name: amsterdam_rental
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://dbc-daf2e406-b82e.cloud.databricks.com
+
+  prod:
+    mode: production
+    workspace:
+      host: https://dbc-daf2e406-b82e.cloud.databricks.com

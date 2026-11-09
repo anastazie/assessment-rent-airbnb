@@ -45,6 +45,16 @@ Calculates estimated monthly revenue per listing and aggregates by postcode:
 
 ---
 
+## Dashboard
+
+![Investment potential by Amsterdam postcode](docs/images/investment_potential_map.png)
+
+Investment potential per PC4 postcode, ranked by the highest achievable monthly rental income (no sale-price data is available, so income is the proxy). Dark green = top third of postcodes (High potential), lighter = Medium / Low, white = fewer than 5 listings, not scored. Airbnb out-earns long-term rental in every postcode, so the ranking is driven by expected Airbnb income.
+
+Build steps and the dataset SQL are in [docs/dashboard.md](docs/dashboard.md).
+
+---
+
 ## Repository structure
 
 ```
@@ -80,7 +90,59 @@ data/
 
 ## Running the pipeline
 
-### On Databricks (recommended)
+There are three ways to run this, in order of recommendation.
+
+### Option A — Databricks Asset Bundle (CLI)
+
+The productionized path. Deploys the three notebooks as a single multi-task job defined in [resources/pipeline_job.yml](resources/pipeline_job.yml), running Bronze → Silver → Gold on **serverless compute** (no cluster definition required — Databricks provisions and tears down the runtime automatically).
+
+**Prerequisites**
+
+- Databricks CLI v0.200+ ([install docs](https://docs.databricks.com/en/dev-tools/cli/install.html)):
+  ```bash
+  brew tap databricks/tap && brew install databricks/tap/databricks
+  # or direct binary download from https://github.com/databricks/cli/releases
+  ```
+- Access to a Databricks workspace. The workspace host is set in [databricks.yml](databricks.yml) — edit if yours differs.
+
+**Steps**
+
+1. **Authenticate** (one-time, interactive):
+   ```bash
+   databricks auth login --host https://dbc-daf2e406-b82e.cloud.databricks.com
+   ```
+   Opens a browser for OAuth. Alternatively, `databricks configure` for a Personal Access Token.
+
+2. **Validate the bundle** — catches YAML and DAG errors before touching the workspace:
+   ```bash
+   databricks bundle validate
+   ```
+
+3. **Deploy** — uploads the notebooks to `/Workspace/Users/<you>/.bundle/amsterdam_rental/dev/` and creates the job via the Jobs API:
+   ```bash
+   databricks bundle deploy
+   ```
+
+4. **Run** — triggers the job, streams status, prints a workspace URL for the run:
+   ```bash
+   databricks bundle run amsterdam_rental_pipeline
+   ```
+   One cluster is spun up, all three tasks run on it sequentially, then it is torn down.
+
+5. **(Optional) Tear down**:
+   ```bash
+   databricks bundle destroy
+   ```
+
+**Useful flags**
+
+- `--only <task_key>` — run just one task (e.g. `--only bronze_ingestion`).
+- `--no-wait` — return immediately with the run URL for background execution.
+- `-t prod` — target a different environment (see `targets:` in [databricks.yml](databricks.yml)).
+
+### Option B — Databricks Repo (interactive)
+
+Best for exploratory work or iterating on a single notebook.
 
 1. Import this repository into a Databricks Repo.
 2. Unzip the source files in `data/` — or let the notebooks handle it automatically (they detect and extract from zip if the unzipped file is absent).
@@ -88,14 +150,9 @@ data/
 4. Run notebooks in order: `01_bronze` → `02_silver` → `03_gold`.
 5. (Optional) Build a dashboard to visualise the gold table — see [docs/dashboard.md](docs/dashboard.md).
 
-To deploy as a scheduled job using the Databricks CLI:
+### Option C — Local (PySpark)
 
-```bash
-databricks bundle deploy
-databricks bundle run amsterdam_rental_pipeline
-```
-
-### Local (PySpark)
+For running unit tests or working on transform logic without a Databricks workspace.
 
 ```bash
 pip install pyspark delta-spark pytest
