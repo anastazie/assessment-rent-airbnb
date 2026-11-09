@@ -39,7 +39,7 @@ def normalise_zipcode(raw) -> Optional[str]:
     if not raw or (isinstance(raw, float) and raw != raw):  # NaN check
         return None
     s = str(raw).strip().split(".")[0]  # strip float suffix e.g. '1053.0' -> '1053'
-    s = re.sub(r"[^0-9]", "", s)       # strip letter suffix e.g. '1053AB' -> '1053'
+    s = re.sub(r"[^0-9]", "", s)  # strip letter suffix e.g. '1053AB' -> '1053'
     return s if len(s) == 4 else None
 
 

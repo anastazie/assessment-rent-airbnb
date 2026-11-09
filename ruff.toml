@@ -1,0 +1,11 @@
+line-length = 100
+target-version = "py39"
+
+[lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]  # long lines are left to the formatter
+
+[lint.per-file-ignores]
+# Notebooks: imports after sys.path setup cells; Databricks globals (spark, dbutils, display)
+"*.ipynb" = ["E402", "F821"]
+"tests/*" = ["E402"]

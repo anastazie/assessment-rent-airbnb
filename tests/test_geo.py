@@ -4,15 +4,14 @@ Uses a minimal inline GeoJSON fixture rather than the full file,
 so the test runs fast and without filesystem dependencies.
 """
 
-import sys
-import os
 import json
+import os
+import sys
 import tempfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from amsterdam_rental.geo import PostcodeIndex
-
 
 FIXTURE_GEOJSON = {
     "type": "FeatureCollection",
@@ -22,30 +21,34 @@ FIXTURE_GEOJSON = {
             "properties": {"pc4_code": "1011"},
             "geometry": {
                 "type": "Polygon",
-                "coordinates": [[
-                    [4.88, 52.37],
-                    [4.90, 52.37],
-                    [4.90, 52.38],
-                    [4.88, 52.38],
-                    [4.88, 52.37],
-                ]]
-            }
+                "coordinates": [
+                    [
+                        [4.88, 52.37],
+                        [4.90, 52.37],
+                        [4.90, 52.38],
+                        [4.88, 52.38],
+                        [4.88, 52.37],
+                    ]
+                ],
+            },
         },
         {
             "type": "Feature",
             "properties": {"pc4_code": "1012"},
             "geometry": {
                 "type": "Polygon",
-                "coordinates": [[
-                    [4.90, 52.37],
-                    [4.92, 52.37],
-                    [4.92, 52.38],
-                    [4.90, 52.38],
-                    [4.90, 52.37],
-                ]]
-            }
-        }
-    ]
+                "coordinates": [
+                    [
+                        [4.90, 52.37],
+                        [4.92, 52.37],
+                        [4.92, 52.38],
+                        [4.90, 52.38],
+                        [4.90, 52.37],
+                    ]
+                ],
+            },
+        },
+    ],
 }
 
 

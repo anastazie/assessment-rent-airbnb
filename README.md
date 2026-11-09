@@ -59,6 +59,7 @@ Build steps and the dataset SQL are in [docs/dashboard.md](docs/dashboard.md).
 
 ```
 notebooks/          Pipeline notebooks (run in order: 01 → 02 → 03)
+  00_eda.ipynb      Exploratory analysis — data quality findings that informed Silver design (not part of the job)
   01_bronze.ipynb   Raw ingestion
   02_silver.ipynb   Cleaning, filtering, zipcode backfill
   03_gold.ipynb     Revenue calculation and postcode aggregation
@@ -71,11 +72,10 @@ tests/
   test_transforms.py  Unit tests for all transform functions
   test_geo.py         Unit tests for PostcodeIndex with GeoJSON fixture
 
-scratch/
-  01_eda.ipynb      Exploratory analysis — data quality findings that informed Silver design
-
 resources/
   pipeline_job.yml  Databricks Asset Bundle job configuration
+
+.pre-commit-config.yaml  Lint/format hooks (ruff, nbstripout, file hygiene)
 
 data/
   airbnb.zip        Source: Airbnb listings (nightly price, location, room type)
@@ -85,6 +85,8 @@ data/
     amsterdam_areas.zip   99 neighbourhood polygons (Amsterdam only)
   output/           Pipeline output (Delta tables + Parquet exports) — gitignored
 ```
+
+**Why `src/` is separate from the notebooks:** the transform and geo logic lives in a plain Python package so it can be unit-tested with pytest without Spark or a cluster. The notebooks and the tests both import it by adding `src/` to `sys.path`. It is not packaged as a wheel on purpose: the code is used by a single job in a single repo, so a wheel would add a build step and a serverless environment dependency without any benefit. Packaging becomes worth it once the library is shared across jobs or repos, or needs its own version.
 
 ---
 
@@ -158,6 +160,14 @@ For running unit tests or working on transform logic without a Databricks worksp
 pip install pyspark delta-spark pytest
 python -m pytest tests/        # run unit tests
 # then open and run notebooks in order using Jupyter
+```
+
+**Pre-commit hooks** (ruff lint + format for `.py` and `.ipynb`, nbstripout, file hygiene):
+
+```bash
+pip install pre-commit
+pre-commit install             # run hooks on every commit
+pre-commit run --all-files     # run once across the repo
 ```
 
 ---

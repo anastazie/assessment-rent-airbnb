@@ -1,0 +1,28 @@
+# Install once:  pip install pre-commit && pre-commit install
+# Run manually:  pre-commit run --all-files
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: [--maxkb=5000]   # source zips are tracked; block accidental unzipped data
+      - id: check-merge-conflict
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff            # lint .py and .ipynb
+        args: [--fix]
+      - id: ruff-format     # format .py and .ipynb
+
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.8.1
+    hooks:
+      - id: nbstripout
+        # Keep outputs: EDA charts and pipeline row counts are evidence for reviewers.
+        # Strips only execution counts and noisy metadata to keep diffs clean.
+        args: [--keep-output]

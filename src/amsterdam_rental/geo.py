@@ -34,10 +34,7 @@ def _point_in_feature(lon: float, lat: float, feature: dict) -> bool:
     if geometry["type"] == "Polygon":
         return _point_in_polygon(lon, lat, geometry["coordinates"])
     elif geometry["type"] == "MultiPolygon":
-        return any(
-            _point_in_polygon(lon, lat, poly)
-            for poly in geometry["coordinates"]
-        )
+        return any(_point_in_polygon(lon, lat, poly) for poly in geometry["coordinates"])
     return False
 
 

@@ -4,17 +4,17 @@ Pure-function tests — no Spark dependency required.
 Run with: pytest tests/
 """
 
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-import pytest
 from amsterdam_rental.transforms import (
+    airbnb_monthly_revenue,
+    flatten_list_field,
+    normalise_zipcode,
     parse_eur,
     parse_sqm,
-    normalise_zipcode,
-    flatten_list_field,
-    airbnb_monthly_revenue,
 )
 
 
