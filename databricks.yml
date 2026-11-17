@@ -1,17 +1,46 @@
+# Databricks Asset Bundle for the Amsterdam rental pipeline.
+#
+# Nothing workspace-specific is hardcoded:
+#   - the workspace comes from your CLI profile (`databricks auth login --host <url>`)
+#   - catalog / schema / volume are variables, passed to every task as job parameters
+#
+#   databricks bundle deploy                                # workspace's default catalog
+#   databricks bundle deploy --var catalog=main --var schema=my_schema
+#   databricks bundle run amsterdam_rental_pipeline
+
 bundle:
   name: amsterdam_rental
 
 include:
   - resources/*.yml
 
+# Source data ships in the repo gzipped and is uploaded with the code. Listed explicitly
+# so a local .gitignore can never silently drop it from the deployment. (Not .zip:
+# workspace import unpacks zip archives on upload, so they would never arrive.)
+sync:
+  include:
+    - data/*.gz
+    - data/geo/*.gz
+
+variables:
+  catalog:
+    description: >
+      Unity Catalog catalog for the schema, volume and tables. Leave empty to use the
+      workspace's default catalog.
+    default: ""
+  schema:
+    description: Schema (created if missing) holding the volume and gold tables.
+    default: amsterdam_rental
+  volume:
+    description: Volume (created if missing) holding staged sources and Delta outputs.
+    default: pipeline
+
 targets:
   dev:
     mode: development
     default: true
-    workspace:
-      host: https://dbc-daf2e406-b82e.cloud.databricks.com
 
   prod:
     mode: production
     workspace:
-      host: https://dbc-daf2e406-b82e.cloud.databricks.com
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}

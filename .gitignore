@@ -1,5 +1,5 @@
-# Data — unzipped source files and pipeline output excluded from version control
-# (zip originals are kept tracked; unzipped files are large and reproducible from them)
+# Data — decompressed source files and pipeline output excluded from version control
+# (the .gz originals are tracked; decompressed files are large and reproducible from them)
 data/*.csv
 data/*.json
 data/geo/*.geojson

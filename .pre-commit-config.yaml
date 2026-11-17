@@ -9,7 +9,7 @@ repos:
       - id: check-yaml
       - id: check-json
       - id: check-added-large-files
-        args: [--maxkb=5000]   # source zips are tracked; block accidental unzipped data
+        args: [--maxkb=15000]  # gzipped sources (≤13 MB) are tracked; blocks decompressed data
       - id: check-merge-conflict
 
   - repo: https://github.com/astral-sh/ruff-pre-commit

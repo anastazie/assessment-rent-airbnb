@@ -1,0 +1,8 @@
+# Local development: unit tests, running the notebooks with local Spark, plotting, hooks.
+# Unit tests only need pytest + matplotlib; PySpark additionally needs Java 17.
+pytest>=8
+matplotlib>=3.8
+pyspark==3.5.3
+delta-spark==3.2.1
+jupyter
+pre-commit

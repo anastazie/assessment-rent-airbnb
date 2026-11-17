@@ -1,8 +1,5 @@
-# Databricks Asset Bundle job configuration
+# Databricks Asset Bundle job: Bronze → Silver → Gold → Report on serverless compute.
 # Deploy with: databricks bundle deploy && databricks bundle run amsterdam_rental_pipeline
-#
-# Requires Databricks CLI v0.200+ and a configured profile.
-# See: https://docs.databricks.com/en/dev-tools/bundles/index.html
 
 resources:
   jobs:
@@ -10,32 +7,48 @@ resources:
       name: Amsterdam Rental Revenue Pipeline
       description: >
         Medallion architecture pipeline comparing Airbnb short-term vs Kamernet
-        long-term rental revenue per Amsterdam postcode. Runs Bronze → Silver → Gold.
+        long-term rental revenue per Amsterdam postcode. Runs Bronze → Silver → Gold,
+        then renders the investment-potential map.
 
-      # Serverless compute: this workspace does not permit classic job clusters,
-      # so tasks run on serverless and no job_clusters block is declared.
+      # Job parameters are passed to every notebook task and fill its widgets.
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema
+          default: ${var.schema}
+        - name: volume
+          default: ${var.volume}
+        - name: repo_root
+          default: ${workspace.file_path}
+
+      # Serverless compute: no job_clusters block (works on workspaces that disallow
+      # classic clusters, including Free Edition).
       tasks:
         - task_key: bronze_ingestion
-          description: Ingest raw source files into Delta bronze tables
+          description: Create schema + volume, stage the source zips, ingest raw Delta tables
           notebook_task:
             notebook_path: ../notebooks/01_bronze.ipynb
-            source: WORKSPACE
 
         - task_key: silver_cleaning
-          description: Clean, enrich, and filter to Amsterdam. Backfill missing zipcodes.
+          description: Clean, enrich, and filter to Amsterdam. Validate and backfill zipcodes.
           depends_on:
             - task_key: bronze_ingestion
           notebook_task:
             notebook_path: ../notebooks/02_silver.ipynb
-            source: WORKSPACE
 
         - task_key: gold_revenue
-          description: Calculate and aggregate monthly revenue estimates per postcode.
+          description: Revenue per listing and postcode, investment-potential tiers, UC tables.
           depends_on:
             - task_key: silver_cleaning
           notebook_task:
             notebook_path: ../notebooks/03_gold.ipynb
-            source: WORKSPACE
+
+        - task_key: report_map
+          description: Render the investment-potential map PNG from the gold table.
+          depends_on:
+            - task_key: gold_revenue
+          notebook_task:
+            notebook_path: ../notebooks/04_report.ipynb
 
       # Run once manually; add a schedule here for recurring runs
       # schedule:
